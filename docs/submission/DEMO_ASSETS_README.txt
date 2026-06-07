@@ -1,7 +1,7 @@
 ================================================================================
   灯 / Tomoshibi — Demo Assets
   Hack the Liquid WAY Tokyo Hackathon 2026 — Track 1 (LFM Application Track)
-  Team: <TEAMNAME>          Submission date: 2026-06-07
+  Team: ITA                 Submission date: 2026-06-07
 ================================================================================
 
 Tagline
@@ -13,7 +13,7 @@ Tagline
 
 Public repository
 -----------------
-  <PASTE PUBLIC GITHUB URL HERE>
+  https://github.com/kous1001/tomoshibi
 
 --------------------------------------------------------------------------------
 FILE LIST (what is in this folder)

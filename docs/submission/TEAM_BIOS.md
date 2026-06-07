@@ -5,8 +5,9 @@
 
 ## Team
 
-- **Team name:** `<TEAMNAME>`
+- **Team name:** ITA
 - **Track:** Track 1 — LFM Application Track
+- **Repo:** https://github.com/kous1001/tomoshibi
 - **Contact (Discord):** `<handle>`
 
 ## Members
