@@ -1,0 +1,18 @@
+灯 Tomoshibi — Tagline (1–2 lines)
+Pick one per language; submit the English line (Japanese presentation → English deck).
+
+── English ──────────────────────────────────────────────
+Primary:
+  Tomoshibi — a 100% on-device AI companion & safety watch for elderly people
+  who live alone. Only a family alert ever leaves the device.
+
+Short (1 line):
+  Tomoshibi: an on-device AI that eases loneliness — and calls for help when a fall goes unseen.
+
+── 日本語 ───────────────────────────────────────────────
+Primary:
+  灯（ともしび）— 一人暮らしの高齢者のための、100%オンデバイスの AI 話し相手＆見守り。
+  外に出るのは「家族への通知」一点だけ。
+
+Short (1 行):
+  灯 — 孤独を照らし、もしもの転倒に命をつなぐ、オンデバイスAI。

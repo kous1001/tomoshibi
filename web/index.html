@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>灯 — Tomoshibi</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
+<meta name="theme-color" content="#1E2742" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="night">
+  <main class="room" aria-label="灯とお話しする画面">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo qs">灯 Tomoshibi</span>
+        <span class="tag">100%オンデバイス見守り＆話し相手</span>
+      </div>
+      <div class="topbar-right">
+        <div class="badge-backends qs" id="backends"></div>
+        <span id="clock">🌙</span>
+      </div>
+    </header>
+
+    <div class="main">
+      <!-- 左: 会話（Live2D ＋ 単一吹き出し） -->
+      <section class="left">
+        <div class="stage" aria-label="キャラクター">
+          <div class="stars" aria-hidden="true"></div>
+          <canvas id="live2d"></canvas>
+          <p class="loading qs" id="loading">灯を よびだしています…</p>
+        </div>
+
+        <div class="bubble-area" aria-live="polite">
+          <div class="who qs"><span class="dot"></span><span id="char-label">灯（あかり）</span></div>
+          <div class="bubble" id="bubble">…</div>
+          <div class="listening qs" id="listening" hidden>
+            <span></span><span></span><span></span><span></span><span></span>
+            <em>かんがえています</em>
+          </div>
+          <div class="conv-status qs" id="conv-status" hidden></div>
+        </div>
+
+        <form class="inputbar" id="chat-form" autocomplete="off">
+          <button type="button" id="mic" class="mic qs" aria-label="音声で話す" title="押して録音 / もう一度押して送信">🎤</button>
+          <input id="chat-input" type="text" placeholder="灯に はなしかけてみよう…（例: 最近ちょっと寂しくてね）" aria-label="メッセージ" />
+          <button type="submit" id="send" class="send qs">はなす</button>
+        </form>
+      </section>
+
+      <!-- 右: 見守り -->
+      <aside class="guardian" aria-label="見守りパネル">
+        <h2 class="qs">🛡️ 見守り <small style="color:#8C97B8;font-weight:400">Guardian</small></h2>
+
+        <div class="status tone-ok" id="status">
+          <div class="st-label" id="st-label">🟢 見守り中</div>
+          <div class="st-desc" id="st-desc">平常。会話を楽しめます。</div>
+        </div>
+
+        <!-- 見守りカメラ（ガーディアンの「目」: 16:9 で最上部に大きく） -->
+        <div class="cam-card">
+          <div class="cam-head">
+            <span class="cam-title qs">📷 見守りカメラ</span>
+            <span class="cam-live" id="cam-live" hidden>● LIVE</span>
+            <span class="cam-btns">
+              <button class="cam-toggle qs" id="btn-cam">📷 ON</button>
+            </span>
+          </div>
+          <div class="cam-demos">
+            <span class="cam-demos-label qs">🎬 テスト動画:</span>
+            <button class="cam-demo qs" data-demo="1" title="転倒A">デモ1</button>
+            <button class="cam-demo qs" data-demo="2" title="転倒B">デモ2</button>
+            <button class="cam-demo qs" data-demo="3" title="転倒C">デモ3</button>
+            <button class="cam-demo qs" data-demo="4" title="通常動作(非転倒)">デモ4</button>
+          </div>
+          <div class="cam-stage">
+            <img id="guardian-cam" alt="見守りカメラ映像" />
+            <div class="cam-placeholder qs" id="cam-placeholder">
+              <span class="cam-ph-icon">📷</span>
+              <span>カメラOFF — 「ON」で見守りを開始</span>
+            </div>
+          </div>
+          <div class="cam-status qs" id="cam-status">停止中</div>
+        </div>
+
+        <div class="controls">
+          <button class="ctl danger full" id="btn-fall">🧪 転倒をシミュレート</button>
+          <button class="ctl ok" id="btn-ok">🙆 本人:大丈夫</button>
+          <button class="ctl danger" id="btn-help">🆘 本人:助けて</button>
+          <button class="ctl" id="btn-ack">👨‍👩‍👧 家族が対応</button>
+          <button class="ctl" id="btn-reset">↩︎ リセット</button>
+        </div>
+
+        <div class="emergency" id="emergency" hidden>
+          <div class="section-label qs">🚑 119 読み上げ原稿（シミュレーション）</div>
+          <p class="e-script" id="e-script"></p>
+          <div class="e-facts" id="e-facts"></div>
+        </div>
+
+        <div>
+          <div class="section-label qs">📜 タイムライン</div>
+          <div class="timeline" id="timeline"></div>
+        </div>
+
+        <details>
+          <summary class="qs">👤 医療プロフィール（端末ローカル）</summary>
+          <div class="profile-card" id="profile-card"></div>
+        </details>
+      </aside>
+    </div>
+  </main>
+
+  <!-- vendor: 読み込み順が重要（PIXI → CubismCore → pixi-live2d-display） -->
+  <script src="/vendor/pixi.min.js"></script>
+  <script src="/vendor/live2dcubismcore.min.js"></script>
+  <script src="/vendor/live2d.min.js"></script>
+  <script src="/static/live2d.js"></script>
+  <script src="/static/main.js"></script>
+  <script src="/static/conversation.js"></script>
+  <script src="/static/guardian.js"></script>
+</body>
+</html>

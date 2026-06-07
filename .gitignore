@@ -1,0 +1,32 @@
+# env / secrets
+.env
+config/profile.json
+
+# models / large binaries
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# captures / recordings
+captures/
+*.mp4
+*.png
+!docs/**/*.png
+.gstack/
+.venv-x86/
+.venv-arm64/

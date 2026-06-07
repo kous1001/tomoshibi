@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tomoshibi — Hack the Liquid WAY (Track 1)</title>
+  <!-- Submission deck. Open in a browser, then Cmd+P → Landscape → Save as PDF for the 2–4 slide submission. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="slides.css" />
+</head>
+<body>
+<div class="deck">
+
+  <!-- ===== Slide 1 — Hero + Japanese problem ===== -->
+  <section class="slide s-hero" aria-label="Slide 1">
+    <span class="kicker">Hack the Liquid WAY · Track 1 — LFM Application</span>
+    <h1><span class="lamp">灯</span> Tomoshibi</h1>
+    <p class="sub">A <b>100% on-device</b> AI companion &amp; safety watch for Japan's elderly who live alone — conversation, vision, and voice never leave the device.</p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="n">~9.0<span class="unit"> M</span></div>
+        <div class="l">elderly people living alone in Japan (rising every year)</div>
+      </div>
+      <div class="stat">
+        <div class="n">~68<span class="unit"> k/yr</span></div>
+        <div class="l">lonely deaths (kodokushi) — many found days later after a fall</div>
+      </div>
+      <div class="stat">
+        <div class="n">#1</div>
+        <div class="l">barrier to a home camera = <b>privacy</b>. We solve it by design.</div>
+      </div>
+    </div>
+
+    <div class="ondevice">⚡ 100% on-device on AMD Ryzen AI — only a family alert ever leaves the home</div>
+
+    <div class="foot">
+      <span>灯 — light the loneliness, keep the safety watch.</span>
+      <span class="muted">LFM2.5-1.2B-JP · LFM2-VL-450M · faster-whisper · VOICEVOX</span>
+    </div>
+  </section>
+
+  <!-- ===== Slide 2 — Why an LFM + Architecture ===== -->
+  <section class="slide" aria-label="Slide 2">
+    <span class="kicker">Why an LFM — privacy is the unlock</span>
+    <h2>The whole brain runs on the device.<br />Only a <span class="coral">family alert</span> crosses the line.</h2>
+
+    <div class="cols">
+      <div class="why">
+        <div class="item"><span class="dot" style="background:var(--tone-ok)"></span><p><b>Privacy / sovereignty.</b> A camera + mic in an elder's home is only acceptable if data never leaves it. A cloud LLM cannot meet that bar — an on-device LFM can.</p></div>
+        <div class="item"><span class="dot" style="background:var(--yellow)"></span><p><b>Always-on, low cost.</b> Continuous pose check is cheap MediaPipe; the LFM2-VL vision model is invoked on <i>~1 frame</i> only when a fall is suspected. Low-power, no per-frame cloud bill.</p></div>
+        <div class="item"><span class="dot" style="background:var(--coral)"></span><p><b>Offline resilience.</b> Works in airplane mode — conversation, fall detection and the 119 script all keep running with no network.</p></div>
+        <div class="item"><span class="dot" style="background:var(--lav)"></span><p><b>Domain fit.</b> A 1.2B Japanese LFM tuned for gentle, slow elder-care dialogue beats a generic large model on this specific task.</p></div>
+      </div>
+
+      <div class="arch">
+<span class="h">── Companion (話し相手) ──────────────</span>
+ 🎤 mic ─VAD─▶ faster-whisper (ASR)
+        ─▶ <span class="h">LFM2.5-1.2B-JP</span> (llama.cpp)
+        ─▶ VOICEVOX (TTS, slow) ─▶ 🔊 + Live2D
+
+<span class="g">── Guardian (見守り) — 2-stage cascade ──</span>
+ 📷 cam ─cheap─▶ MediaPipe Pose
+        ─▶ fall heuristic (stand▶flat, 3s)
+   suspected ─1 frame─▶ <span class="g">LFM2-VL-450M</span> confirm
+                              │
+   Escalation FSM ───────────▼
+   <span class="b">S1</span> check-in ─15s─▶ <span class="b">S2</span> family ─5s─▶ <span class="b">S3</span> 119
+      </div>
+    </div>
+
+    <div class="foot">
+      <span>2 stages = run the heavy VLM rarely → <b>low load × high precision</b></span>
+      <span class="muted">All inference local · PII stays on device · FastAPI + Live2D UI</span>
+    </div>
+  </section>
+
+  <!-- ===== Slide 3 — Approach & Results ===== -->
+  <section class="slide" aria-label="Slide 3">
+    <span class="kicker">Results — fall → graduated escalation</span>
+    <h2>From a quiet fall to a <span class="accent">119 hand-off</span>, automatically.</h2>
+
+    <div class="flow">
+      <div class="step s1">
+        <div class="tag">S1 · CHECK-IN</div>
+        <h3>Speak to the resident</h3>
+        <p>VLM confirms a person lying down → Tomoshibi gently asks "Are you OK?" (🙆 resolves).</p>
+      </div>
+      <div class="step s2">
+        <div class="tag">S2 · FAMILY (after 15s)</div>
+        <h3>Notify family</h3>
+        <p>No response → alert the registered family contact. The only message that leaves the device.</p>
+      </div>
+      <div class="step s3">
+        <div class="tag">S3 · 119 (after 5s)</div>
+        <h3>Read the dispatch script</h3>
+        <p><b>LFM2 generates the 119 script live</b> — name, conditions, medications, allergies — spoken aloud. 🆘 jumps straight here.</p>
+      </div>
+    </div>
+
+    <div class="shots">
+      <div class="shot">📸 Conversation UI (Live2D)<div class="ph">&lt;replace: screenshot&gt;</div></div>
+      <div class="shot">📸 Guardian timeline S1→S2→S3<div class="ph">&lt;replace: screenshot&gt;</div></div>
+      <div class="shot">📸 W&amp;B Weave trace / latency<div class="ph">&lt;replace: screenshot&gt;</div></div>
+    </div>
+
+    <div class="foot">
+      <span>51 unit + integration tests · pure fall heuristic, FSM, 119 generation</span>
+      <span class="muted">Demo verified on Mac (real models) → portable to Ryzen AI PC unchanged</span>
+    </div>
+  </section>
+
+  <!-- ===== Slide 4 — Impact & on-device proof ===== -->
+  <section class="slide" aria-label="Slide 4">
+    <span class="kicker">Impact &amp; on-device proof</span>
+    <h2>Light the loneliness. Hold the line when it matters.</h2>
+
+    <div class="impact">
+      <div class="card">
+        <div class="ic">💬</div>
+        <h3>Eases isolation, every day</h3>
+        <p>Warm, slow Japanese voice conversation — listening, reminiscence, medication reminders. Hands-free for non-technical elders.</p>
+      </div>
+      <div class="card">
+        <div class="ic">🛟</div>
+        <h3>Saves lives at the edge</h3>
+        <p>A fall no one would notice becomes a confirmed alert and a clean 119 hand-off in under a minute.</p>
+      </div>
+      <div class="card">
+        <div class="ic">✈️</div>
+        <h3>Provable privacy</h3>
+        <p>Live demo in airplane mode: chat, fall detection and 119 read-out all run. Only the family alert is external (mockable to zero network).</p>
+      </div>
+      <div class="card">
+        <div class="ic">🔌</div>
+        <h3>Ships on Ryzen AI</h3>
+        <p>llama.cpp + Vulkan / FastFlowLM NPU for LFM2, transformers for LFM2-VL. App Python is identical — only a launch flag changes.</p>
+      </div>
+    </div>
+
+    <p class="closer">"<span class="lamp">灯</span> lights the loneliness, and ties the line to life when it matters most."</p>
+
+    <div class="foot">
+      <span>Repo: &lt;public GitHub URL&gt; · Track 1 · Team &lt;TEAMNAME&gt;</span>
+      <span class="muted">Liquid AI · WAY Equity Partners · AMD · W&amp;B · Hugging Face</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

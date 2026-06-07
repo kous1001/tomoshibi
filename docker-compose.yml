@@ -1,0 +1,23 @@
+# 灯(Tomoshibi) 専用の VOICEVOX エンジン。
+# 他プロジェクト(sobani等)の起動に依存せず、このリポジトリが自前で立てる。
+# Mac開発でも AMD Ryzen AI PC(Windows Docker Desktop)でも同じ compose で動く。
+#
+#   docker compose up -d        # 起動（バックグラウンド）
+#   docker compose down         # 停止
+#   起動確認: curl http://127.0.0.1:50021/version  → "0.25.2"
+services:
+  voicevox:
+    # 再現性のため版を固定（実行中エンジンと一致）。GPUを使うなら nvidia-0.25.2 等へ。
+    image: voicevox/voicevox_engine:cpu-0.25.2
+    container_name: tomoshibi-voicevox
+    # ホスト側ポートは VOICEVOX_PORT で変更可（既定50021）。
+    # 既に別プロジェクトが50021を使用中なら `VOICEVOX_PORT=50121 docker compose up -d`。
+    ports:
+      - "${VOICEVOX_PORT:-50021}:50021"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:50021/version"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

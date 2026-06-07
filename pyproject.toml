@@ -1,0 +1,48 @@
+[project]
+name = "tomoshibi"
+version = "0.1.0"
+description = "灯(Tomoshibi) — オンデバイスAI見守り&話し相手 for 一人暮らし高齢者 (Hack the Liquid WAY Tokyo 2026, Track 1)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # --- always required (mock mode runs with just these) ---
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "gradio>=4.44",
+    "numpy>=1.26",
+    "pillow>=10.0",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+# Real on-device model backends. Installed on the AMD Ryzen AI PC.
+# On macOS dev machines you can skip these and run in mock mode.
+models = [
+    "transformers>=4.45",
+    "torch>=2.2",
+    "torchvision>=0.17",  # LFM2-VL の画像プロセッサが要求
+    "accelerate>=0.34",
+]
+vision = [
+    "opencv-python>=4.9",
+    "mediapipe>=0.10",
+]
+asr = [
+    # Mac/CPU 開発用の日本語ASR（torch不要・CTranslate2）。Ryzen実機は whisper.cpp を使用。
+    "faster-whisper>=1.0",
+]
+obs = [
+    "weave>=0.51",
+    "wandb>=0.17",
+]
+
+[project.scripts]
+tomoshibi = "tomoshibi.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tomoshibi"]

@@ -1,0 +1,29 @@
+{
+  "resident": {
+    "name": "山田 花子",
+    "name_kana": "やまだ はなこ",
+    "age": 78,
+    "sex": "女性",
+    "address": "東京都新宿区西新宿2-8-1 サンプルマンション305",
+    "phone": "03-0000-0000"
+  },
+  "medical": {
+    "blood_type": "A型",
+    "conditions": ["高血圧", "2型糖尿病", "軽度の難聴（右耳）"],
+    "medications": ["アムロジピン 5mg 朝1錠", "メトホルミン 250mg 朝夕"],
+    "allergies": ["ペニシリン"],
+    "mobility": "屋内は杖で自立歩行",
+    "primary_doctor": "新宿中央クリニック 03-0000-1111"
+  },
+  "emergency_contacts": [
+    { "name": "山田 太郎", "relation": "長男", "phone": "090-0000-2222", "channel": "line_notify" },
+    { "name": "佐藤 美咲", "relation": "長女", "phone": "090-0000-3333", "channel": "mock" }
+  ],
+  "routine": {
+    "wake": "06:30",
+    "medication_times": ["08:00", "19:00"],
+    "meals": ["07:00", "12:00", "18:30"],
+    "notes": "毎朝ラジオ体操。火曜と金曜にデイサービス。"
+  },
+  "interests": ["園芸（バラ）", "演歌", "孫の話", "若い頃は小学校の先生"]
+}
