@@ -1,128 +1,105 @@
-# 灯 — Tomoshibi
+# 灯 Tomoshibi
 
-> 一人暮らしの高齢者のための、**100%オンデバイス**の AI 話し相手 ＆ 見守り。
-> Hack the Liquid WAY Tokyo Hackathon 2026 — **Track 1: LFM Application Track**。
-> 対話も視覚も音声もすべて端末内（LFM2 / LFM2-VL / VOICEVOX / faster-whisper）。
-> 外部に出るのは「家族への通知」一点だけ。AMD Ryzen AI PC へそのまま移植できる構成。
+[![English](https://img.shields.io/badge/lang-English-2E8C82?style=for-the-badge)](README.md)
+[![日本語](https://img.shields.io/badge/lang-日本語-9AA6C6?style=for-the-badge)](README.ja.md)
 
-## なぜ「灯」か
-
-日本は超高齢社会。一人暮らしの高齢者の **孤独** と、誰にも気づかれない **転倒・孤独死** が深刻な課題です。
-家庭にカメラを置く最大の障壁は **プライバシー**。灯はそれを設計で解決します
-— すべての推論を端末内で行い、外部送信は「家族への通知」だけ（デモではモック）。
-
-灯は2つの顔を持つ1つのアプリです。
-
-1. **話し相手 (Companion)** — LFM2 による温かい日本語**音声対話**。傾聴・回想・体調気づかい・服薬リマインド。
-   高齢者向けに**ゆっくり**話します（マイクのハンズフリー会話／テキスト会話）。
-2. **見守り (Guardian)** — カメラで転倒を**2段階**検知し、段階的に対応:
-   **本人へ声かけ → 反応なしなら家族へ通知 → 緊急時は医療プロフィールを救急向けに整形して読み上げ（119シミュレーション）**。
+> A **100% on-device** AI companion & safety watch for elderly people who live alone.
+> Built for **Hack the Liquid WAY Tokyo Hackathon 2026 — Track 1 (LFM Application)**.
+> Dialogue, vision, and voice all run locally (LFM2 / LFM2-VL / faster-whisper / VOICEVOX).
+> The **only** thing that ever leaves the device is a family alert — and it ports to an AMD Ryzen AI PC as-is.
 
 ---
 
-## システム構成
+## Why Tomoshibi
 
-```
-┌──────────────────────── 話し相手 (Companion) ────────────────────────┐
- 🎤マイク ─VAD自動区切り→ faster-whisper(ASR) ─→ LFM2.5-1.2B-JP(対話, llama.cpp)
-        ─→ VOICEVOX(TTS, ゆっくり) ─→ スピーカー ＋ Live2D 口パク(RMS)
-└──────────────────────────────────────────────────────────────────┘
+Japan is a super-aged society. Two problems hit elders who live alone hardest: **loneliness**, and a **fall that nobody notices** — sometimes a lonely death discovered days later.
 
-┌──────────────── 見守り (Guardian) 2段階カスケード ────────────────┐
- 📷カメラ ─連続/安価→ MediaPipe PoseLandmarker ─→ 転倒ヒューリスティック
-        （立位→水平+低位置 の遷移 → 3秒 未回復で候補確定）
-   候補成立時だけ 1フレーム→ LFM2-VL-450M(確認/意味理解) ──確定──┐
-                                                              ▼
-   エスカレーションFSM: S1 声かけ →(15s)→ S2 家族通知 →(5s)→ S3 119読み上げ
-└──────────────────────────────────────────────────────────────────┘
-                    UI: FastAPI + バニラHTML/JS（夜テーマ・Live2D）
-```
+The biggest barrier to putting a camera in an elder's home is **privacy**. Tomoshibi solves it by design: **every inference runs on the device**, and the only outbound message is a family alert (mocked in the demo). A cloud LLM can't meet that bar — an on-device LFM can.
 
-**2段階にする理由**: VLMを毎フレーム回すのは重すぎる（オンデバイスで非現実的）。
-軽い MediaPipe で「いつ見るか」を絞り、稀に1枚だけ LFM2-VL で「本当に倒れているか」を意味確認する
-（誤検知を弾く）。これで**低負荷×高精度**を両立。
+Tomoshibi is one app with two faces:
+
+- **Companion (話し相手)** — warm Japanese **voice** conversation powered by LFM2: listening, reminiscence, gentle check-ins, medication reminders. It speaks **slowly** for elders (hands-free mic or text).
+- **Guardian (見守り)** — a **2-stage** on-device fall watch that escalates gracefully:
+  **voice check-in → notify family if no answer → read a 119 emergency script aloud** (a simulation).
 
 ---
 
-## 技術スタック
+## Architecture
 
-| 役割 | 実モデル/ライブラリ | 実行場所 | mock(開発用) |
+```
+┌──────────────────────── Companion (話し相手) ────────────────────────┐
+ 🎤 mic ─VAD auto-segment→ faster-whisper (ASR) ─→ LFM2.5-1.2B-JP (llama.cpp)
+        ─→ VOICEVOX (TTS, slow) ─→ speaker  +  Live2D lip-sync (RMS)
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────── Guardian (見守り) — 2-stage cascade ────────────────┐
+ 📷 camera ─cheap/continuous→ MediaPipe PoseLandmarker ─→ fall heuristic
+            (stand → horizontal + low → unrecovered for 3 s = candidate)
+   only on a candidate, 1 frame → LFM2-VL-450M (semantic confirm) ──┐
+                                                                    ▼
+   Escalation FSM:  S1 check-in →(15s)→ S2 notify family →(5s)→ S3 119 read-out
+└──────────────────────────────────────────────────────────────────────┘
+                 UI: FastAPI + vanilla HTML/JS (night theme · Live2D)
+```
+
+**Why two stages?** Running a VLM on every frame is infeasible on-device. Cheap MediaPipe decides **when to look**; the LFM2-VL model does a single semantic confirmation (*“is a person lying on the floor?”*) only on a candidate frame. Result: **low power, high precision, few false positives** — and the heavy model stays mostly idle.
+
+---
+
+## Tech stack
+
+| Role | Model / library (real) | Where it runs | Mock (dev) |
 |---|---|---|---|
-| 対話 LLM | **LFM2.5-1.2B-JP**（GGUF Q4_K_M） | llama.cpp サーバ（Mac=Metal / Ryzen=Vulkan・FastFlowLM NPU）OpenAI互換HTTP | ルールベース応答 |
-| 視覚確認 | **LFM2-VL-450M** | transformers（Mac=MPS / Ryzen=ROCm・CPU）※候補時のみ・遅延ロード | 常に「転倒」 |
-| 姿勢検知 | **MediaPipe PoseLandmarker**（Tasks API, lite） | CPU・連続 | （純関数でテスト） |
-| 音声合成 | **VOICEVOX**（cpu-0.25.2, 本リポジトリ所有のdocker） | ローカルHTTP :50021 | テキストのみ |
-| 音声認識 | **faster-whisper**(Mac) / **whisper.cpp**(Ryzen) | CPU/Metal | 空文字 |
-| キャラ | **Live2D (Hiyori)** + PIXI/Cubism | ブラウザ(WebGL) | — |
-| 観測性 | **W&B Weave**（任意・既定OFF） | クラウド(ログのみ) | no-op |
-| UI | **FastAPI + バニラHTML/CSS/JS** | ローカル | 同じ |
+| Dialogue LLM | **LFM2.5-1.2B-JP** (GGUF Q4_K_M) | llama.cpp server — Mac=Metal / Ryzen=Vulkan·FastFlowLM NPU (OpenAI-compatible HTTP) | rule-based replies |
+| Fall confirmation | **LFM2-VL-450M** | transformers (Mac=MPS / Ryzen=ROCm·CPU); candidate-only, lazy-loaded | always “fallen” |
+| Pose (when-to-look) | **MediaPipe PoseLandmarker** (lite) | CPU, continuous | pure-function tested |
+| TTS | **VOICEVOX** (cpu-0.25.2, Docker) | local HTTP :50021 | text only |
+| ASR | **faster-whisper** (Mac) / **whisper.cpp** (Ryzen) | CPU / Metal | empty string |
+| Avatar | **Live2D (Hiyori)** + PIXI / Cubism | browser (WebGL) | — |
+| Observability | **W&B Weave** (optional, off by default) | cloud (logs only) | no-op |
+| UI / API | **FastAPI** + vanilla HTML/CSS/JS | local | same |
 
-設計の肝: **全バックエンドに mock 実装**があり、モデル無しでも E2E で起動・テストできる。
-実モデルへは**環境変数の切替だけ**で移行（Pythonコードは不変）。
+Design key: **every backend has a mock**, so the app boots and the full test suite runs with no models present. Moving to real models is **just environment variables** — the Python code is unchanged.
 
----
-
-## 処理フロー（実装の詳細）
-
-### 話し相手
-- 🎤ボタンで**ハンズフリー会話**（`web/conversation.js`）: VAD（音量）で発話の区切りを自動判定 →
-  録音→`/api/transcribe`（faster-whisper）→`/api/chat`（LFM2.5-JP）→ VOICEVOX音声＋Live2D口パク。
-  灯の発話中はマイクを止めエコー混入を防止。テキスト会話も併用可。
-- **話速**: 話し相手は `COMPANION_SPEECH_SPEED`（既定 **0.85=ゆっくり**）。見守りの発話は 1.0。
-- 返答は高齢者・TTS向けに**2〜3文**へ短縮（`LFM2_GEN.max_new_tokens=120`）。
-- 読み上げ整形は `voice/jp_text.py`（ふりがな注釈「灯（あかり）」→「あかり」、伸ばし記号統一、文末句点）。
-
-### 見守り
-- `guardian/camera.py` の `CameraMonitor`（サーバ側スレッド）: cv2でフレーム取得 → MediaPipe PoseLandmarker →
-  `landmarks_to_sample`（体幹角度・重心）→ `pose.py` のヒューリスティック。映像は骨格＋状態を描いて **MJPEG** 配信。
-- **転倒ヒューリスティック**（`guardian/pose.py`）: 「立位→水平＋低位置」の**遷移**を検知 →
-  **`FALL_STILLNESS_S`(3秒)以内に起き上がり(立位かつ重心が高い状態が0.4s継続)が無ければ確定**。
-  床で MediaPipe が人物を見失っても「起き上がっていない＝確定」となり頑健。
-- **LFM2-VL 確認**（`guardian/vision.py`）: 候補フレームを英語プロンプト
-  `"Is there a person lying on the floor or ground? Answer yes or no."` で判定（未FTでも安定）。
-  初回のみ遅延ロード＋カメラON時にウォームアップ、**VL専用スレッド**で対話をブロックしない。
-- **エスカレーションFSM**（`guardian/fsm.py`）:
-  - `S1 声かけ` → 15秒(`CHECKIN_TIMEOUT_S`)無応答 → `S2 家族通知` → 5秒(`FAMILY_ACK_TIMEOUT_S`)無応答 → `S3 119`。
-  - 「🆘助けて」は**最緊急**として S2 を飛ばし**直接 S3** へ。「🙆大丈夫」で解決。
-  - S3 の **119原稿は実LFM2が非同期生成**（`DISPATCH_MAX_TOKENS=384`）し、画面は即S3へ遷移→生成完了後に反映・読み上げ。
-    事実の箇条書き（氏名/住所/持病/服薬/アレルギー/緊急連絡先）は決定論生成で即時表示。**PIIは端末内のみ**。
+Companion replies are kept short for elders and TTS (**1–2 sentences, ≤60 chars**, `max_new_tokens=72`, trimmed by `companion/text.py`).
 
 ---
 
-## クイックスタート（mock / モデル不要）
+## Quick start (mock — no models)
 
 ```bash
-uv venv --python 3.12            # 実LFM2-VLまで使うなら arm64 ネイティブ推奨（後述）
-uv pip install -e .              # 最小依存（fastapi/uvicorn/numpy/pillow 等）
+uv venv --python 3.12            # arm64-native recommended if you want real LFM2-VL (see Notes)
+uv pip install -e .              # minimal deps (fastapi / uvicorn / numpy / pillow ...)
 cp config/profile.example.json config/profile.json
 
-# ヘッドレスで全シナリオを確認（GUI不要）
+# Headless walkthrough of every scenario (no GUI)
 PYTHONPATH=src TOMOSHIBI_MODE=mock python scripts/demo_scenario.py
 
-# UI（Live2D会話 + 見守りダッシュボード）を起動
+# UI (Live2D chat + guardian dashboard)
 PYTHONPATH=src TOMOSHIBI_MODE=mock PROFILE_PATH=config/profile.example.json \
   python -m uvicorn tomoshibi.webapp.server:app --port 8000
-# → http://127.0.0.1:8000（Live2DはWebGL対応ブラウザで表示）
+# → http://127.0.0.1:8000  (Live2D needs a WebGL browser)
 ```
 
-UI: 左=会話（Live2D＋単一吹き出し＋🎤）、右=見守り（カメラ/デモ・状態・タイムライン・119原稿・医療カード）。
-「🧪 転倒をシミュレート」→ S1→(15s)→S2→(5s)→S3 と自動進行。「🙆大丈夫 / 🆘助けて / 👨‍👩‍👧家族が対応」で分岐。
+UI: left = conversation (Live2D + single speech bubble + 🎤), right = guardian (camera/demo · status · timeline · 119 script · medical card). Press **“🧪 Simulate fall”** → S1 →(15s)→ S2 →(5s)→ S3 runs automatically; branch with **🙆 OK / 🆘 Help / 👨‍👩‍👧 family handled**.
 
-> 旧 Gradio 版は `src/tomoshibi/app.py` に残置（非推奨・mockデバッグ用）。現行UIは FastAPI 版です。
+> The legacy Gradio UI remains in `src/tomoshibi/app.py` (deprecated, mock-debug only). The current UI is the FastAPI app.
 
-## 本番に近い構成（実LFM2対話 ＋ 実音声 ＋ 実視覚）
+---
 
-実モデルで動かすには **3プロセス**（VOICEVOX / LFM2サーバ / アプリ）を立てます。
+## Run with real models (3 processes)
+
+Real LFM2 dialogue + real voice + real vision use **three processes** (VOICEVOX / LFM2 server / app).
 
 ```bash
-# 依存とモデル
-uv pip install -e ".[asr,vision,models]"           # faster-whisper / opencv・mediapipe / torch・transformers
-brew install llama.cpp                              # llama-server（Mac=Metal）
+# Deps + model
+uv pip install -e ".[asr,vision,models]"
+brew install llama.cpp                              # llama-server (Mac=Metal)
 huggingface-cli download LiquidAI/LFM2.5-1.2B-JP-202606-GGUF \
   LFM2.5-1.2B-JP-202606-Q4_K_M.gguf --local-dir models
 mv models/LFM2.5-1.2B-JP-202606-Q4_K_M.gguf models/LFM2.5-1.2B-JP-Q4_K_M.gguf
 
-# 1) VOICEVOX（本リポジトリ所有 :50021）  2) LFM2対話 :8080  3) アプリ
+# 1) VOICEVOX :50021   2) LFM2 dialogue :8080   3) app
 bash scripts/run_voicevox.sh
 bash scripts/run_llm_server.sh
 LLAMACPP_SERVER_URL=http://127.0.0.1:8080 TOMOSHIBI_MODE=auto \
@@ -131,78 +108,58 @@ LLAMACPP_SERVER_URL=http://127.0.0.1:8080 TOMOSHIBI_MODE=auto \
   PYTHONPATH=src python -m uvicorn tomoshibi.webapp.server:app --port 8000
 ```
 
-- 起動ログ `backends:` が `llm:llamacpp / tts:voicevox / asr:faster_whisper / vision:transformers` なら実モデル接続成功。
-- **見守りカメラ**: 右パネル「📷 ON」で実カメラ起動（macOS初回はターミナルに**カメラ許可**が必要）。
-- **テスト動画**: 「🎬 デモ1〜4」ボタン。デモ1〜3＝転倒、**デモ4＝通常動作（非転倒・誤検知しないことの検証）**。
-  動画は `data/demos/`（UR Fall Detection由来）。`.env` で速度等を調整可（`COMPANION_SPEECH_SPEED` 等）。
+- Success when the startup log shows `backends: llm:llamacpp / tts:voicevox / asr:faster_whisper / vision:transformers`.
+- **Guardian camera**: click **“📷 ON”** in the right panel (macOS asks for camera permission on first run).
+- **Test videos**: **“🎬 Demo 1–4”** — demos 1–3 are falls, **demo 4 is normal activity** (verifies no false positive). Clips live in `data/demos/` (from the UR Fall Detection Dataset).
 
-### Ryzen AI PC への移植（アプリのPythonは不変）
+### Port to AMD Ryzen AI PC (app Python unchanged)
 
-| 要素 | Mac | Ryzen AI PC |
+| Component | Mac | AMD Ryzen AI PC |
 |---|---|---|
-| 対話 LFM2 | `run_llm_server.sh`（llama.cpp Metal） | 同 compose / `-ngl` を Vulkan・FastFlowLM NPU に |
-| VOICEVOX | `run_voicevox.sh`（docker compose） | 同左（Windows Docker Desktop, 同 compose） |
-| 視覚 LFM2-VL | transformers(MPS) | transformers(ROCm/CPU) |
-| ASR | faster-whisper | whisper.cpp（`ASR_BACKEND=whisper_cpp`）も可 |
-| アプリ | 変更なし | `LLAMACPP_SERVER_URL` を指すだけ |
+| Dialogue LFM2 | `run_llm_server.sh` (llama.cpp Metal) | same compose; `-ngl` → Vulkan / FastFlowLM NPU |
+| VOICEVOX | `run_voicevox.sh` (Docker compose) | same (Windows Docker Desktop) |
+| Vision LFM2-VL | transformers (MPS) | transformers (ROCm / CPU) |
+| ASR | faster-whisper | whisper.cpp (`ASR_BACKEND=whisper_cpp`) too |
+| App | unchanged | just point `LLAMACPP_SERVER_URL` at the local server |
 
-`LlamaCppLLM` がOpenAI互換HTTPを叩くため、対話モデルの差し替えは**起動コマンドのみ**。
-**移植・起動の詳細手順 → [`docs/RYZEN_AI_PC_SETUP.md`](docs/RYZEN_AI_PC_SETUP.md)**。
+`LlamaCppLLM` speaks OpenAI-compatible HTTP, so swapping the dialogue model is **launch-command only**. Full steps → [`docs/RYZEN_AI_PC_SETUP.md`](docs/RYZEN_AI_PC_SETUP.md).
 
 ---
 
-## 環境メモ（重要）
+## Privacy proof
 
-- **実 LFM2-VL を Mac で動かすには arm64 ネイティブ Python が必要**（torch≥2.4 が Intel-Mac wheel 非対応のため）。
-  本プロジェクトの `.venv` は uv の **CPython 3.12 (arm64) + torch 2.12（MPS）**。x86_64環境では視覚は自動的に mock へフォールバック。
-- `config.py` で `KMP_DUPLICATE_LIB_OK=TRUE` を設定（torch と ctranslate2/cv2 の OpenMP 二重リンク回避）。
-- アプリ既定ポートは **8000**。本開発機では 8000 が別プロジェクト使用中のため **8030** で起動している。
-- `.env`（gitignore対象）で接続先・話速・カメラ番号などを上書き可（`.env.example` 参照）。
+During the demo you can turn on **airplane mode** and everything still works — conversation, fall detection, and the 119 read-out. The only outbound message is the family alert; with `FAMILY_NOTIFY_CHANNEL=mock` even that stays off the network. The medical profile (PII) is stored **only on the device**.
 
-## プライバシー実証
-
-デモ中に **機内モード**でも、会話・転倒検知・119読み上げが動くことを示せます
-（外部送信は「家族通知」のみ。`FAMILY_NOTIFY_CHANNEL=mock` ならネットワークにも出ません）。
-
-## テスト
+## Tests
 
 ```bash
 uv pip install pytest
-PYTHONPATH=src TOMOSHIBI_MODE=mock python -m pytest tests/ -q   # 51 tests
+PYTHONPATH=src TOMOSHIBI_MODE=mock python -m pytest -q     # 71 tests
 ```
 
-- 純関数: 転倒ヒューリスティック(`pose.py`) / FSM(`fsm.py`) / 119生成(`dispatch.py`) /
-  読み上げ整形(`jp_text.py`) / 姿勢変換(`camera.landmarks_to_sample`)。
-- 統合: FastAPI(`webapp`) の chat・見守り・transcribe を TestClient で（mock E2E）。
+- Pure functions: fall heuristic (`pose.py`), escalation FSM (`fsm.py`), 119 generation (`dispatch.py`), read-aloud shaping (`jp_text.py`), reply trimming (`companion/text.py`), persona prompt (`persona.py`).
+- Integration: FastAPI chat / guardian / transcribe via TestClient (mock E2E).
 
-## ディレクトリ
+## Project layout
 
 ```
 src/tomoshibi/
-├── config.py              設定・閾値（FSM秒数/話速/生成トークン）・OpenMP対策
-├── runtime.py             統合層（会話/見守りの実行・状態保持・非同期119生成）
-├── webapp/                server.py(FastAPI API+MJPEG) / serialize.py(状態→JSON)
-├── app.py / ui_render.py  旧Gradio UI（残置・非推奨）
-├── companion/             persona.py(人格) / llm.py(LFM2: llamacpp/transformers/mock)
-├── guardian/              camera.py(cv2+MediaPipe Tasks) / pose.py(転倒判定) /
-│                          vision.py(LFM2-VL) / fsm.py(エスカレーションFSM)
-├── voice/                 asr.py(faster-whisper/whisper.cpp) / tts.py(VOICEVOX, 話速) / jp_text.py
-└── obs/trace.py           W&B Weave ラッパ（任意）
+├── config.py              settings & thresholds (FSM timers / speech speed / gen tokens) + OpenMP fix
+├── runtime.py             integration layer (companion/guardian, state, async 119 generation)
+├── webapp/                server.py (FastAPI API + MJPEG) · serialize.py (state → JSON)
+├── companion/             persona.py · llm.py (LFM2: llamacpp/transformers/mock) · text.py (reply trim)
+├── guardian/              camera.py (cv2 + MediaPipe) · pose.py (fall heuristic) ·
+│                          vision.py (LFM2-VL) · fsm.py (escalation FSM)
+├── voice/                 asr.py · tts.py (VOICEVOX) · jp_text.py (read-aloud shaping)
+├── emergency/             profile.py · dispatch.py (119 script) · notify.py (family)
+└── obs/trace.py           W&B Weave wrapper (optional)
 
-web/                       フロント（バニラHTML/CSS/JS + Live2D, 夜テーマ）
-├── index.html  styles.css
-├── main.js                会話・Live2D起動・RMSリップシンク
-├── conversation.js        🎤ハンズフリー会話（VAD）
-├── guardian.js            見守りポーリング・カメラ/デモ操作・119表示
-├── live2d.js + vendor/    PIXI + Cubism            models/hiyori/ Live2Dモデル
-docker-compose.yml         VOICEVOX(tomoshibi-voicevox) 定義
-scripts/                   run_voicevox.sh / run_llm_server.sh / demo_scenario.py
-data/demos/                デモ用テスト動画 demo1〜4.mp4（gitignore）
-config/profile.example.json  医療/見守りプロフィール（端末ローカル）
+web/                       frontend (vanilla HTML/CSS/JS + Live2D, night theme)
+scripts/                   run_voicevox.sh · run_llm_server.sh · demo_scenario.py
+config/profile.example.json  medical / guardian profile (device-local)
+docker-compose.yml         VOICEVOX service
 ```
 
-## ライセンス / 注意
+## License & notes
 
-ハッカソンのプロトタイプです。実際の救急通報(119)は行いません（読み上げ原稿の生成＋シミュレーション）。
-医療プロフィールは端末ローカルに保存され、外部送信しません。
-Live2D「Hiyori」は Live2D Cubism 公式サンプル（各ライセンスに従う）。デモ動画は UR Fall Detection Dataset 由来。
+A hackathon prototype. It does **not** place a real 119 call — it generates and reads a dispatch script (simulation). The medical profile is stored locally and never sent off-device. Live2D “Hiyori” is the official Cubism sample (subject to its license). Demo clips are from the UR Fall Detection Dataset. Code is MIT licensed (see [`LICENSE`](LICENSE)).
