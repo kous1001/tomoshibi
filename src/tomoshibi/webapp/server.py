@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import logging
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -27,6 +28,8 @@ from ..guardian.camera import CameraMonitor
 from ..guardian.fsm import Event, Phase
 from ..runtime import Runtime
 from .serialize import guardian_state
+
+logger = logging.getLogger(__name__)
 
 WEB_DIR = Path(__file__).resolve().parents[3] / "web"
 
@@ -151,7 +154,15 @@ def _to_wav16k(src: Path) -> Path | None:
             check=True,
         )
         return out if out.exists() else None
+    except FileNotFoundError:
+        logger.warning("ffmpeg が見つかりません。16kHz変換をスキップします。")
+        return None
+    except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or b"").decode("utf-8", "ignore")[-500:]
+        logger.warning("ffmpeg 変換に失敗しました (src=%s): %s", src, stderr)
+        return None
     except Exception:
+        logger.exception("16kHz変換で予期せぬエラー (src=%s)", src)
         return None
 
 
@@ -164,9 +175,20 @@ async def transcribe(body: TranscribeIn):
         try:
             tmp.write_bytes(base64.b64decode(body.audio))
         except Exception:
+            logger.warning("transcribe: base64デコードに失敗 (ext=%s)", body.ext)
             return {"text": "", "error": "invalid base64"}
-        wav = _to_wav16k(tmp) or tmp
+        size = tmp.stat().st_size if tmp.exists() else 0
+        converted = _to_wav16k(tmp)
+        if converted is None:
+            # 変換失敗。faster-whisper(PyAV)は原本も復号できるため渡すが、無言にしない。
+            logger.warning(
+                "transcribe: 16kHz変換に失敗、原本を使用 (ext=%s, %d bytes)", body.ext, size
+            )
+        wav = converted or tmp
         text = _rt().transcribe(str(wav))
+        logger.info(
+            "transcribe: ext=%s, %d bytes, 認識=%d文字", body.ext, size, len(text)
+        )
         return {"text": text}
 
     return JSONResponse(await _run(work))

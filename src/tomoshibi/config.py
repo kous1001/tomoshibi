@@ -29,14 +29,18 @@ FALL_STILLNESS_S = 3.0  # 転倒後この秒数静止し続けたら候補確定
 OVERHEAD_STILLNESS_S = 10.0
 VL_CONFIRM_MIN_CONFIDENCE = 0.5  # LFM2-VL 確認のしきい値
 
+# 話し相手の1発話の文字数上限（高齢者の負担軽減。後処理 trim_reply の閾値）。
+COMPANION_MAX_CHARS = 60
+
 # --- LFM2 生成パラメータ（AGENTS.md の正準デフォルト） ---
 LFM2_GEN = {
     "do_sample": True,
     "temperature": 0.3,
     "min_p": 0.15,
     "repetition_penalty": 1.05,
-    # 高齢者＋TTS向けに短く。長文は聞きづらく音声も長引くため2〜3文に収める。
-    "max_new_tokens": 120,
+    # 高齢者＋TTS向けに短く。長文は聞きづらく、小型モデルでは生成が長いほど遅延も目立つ。
+    # 60字目安＋短い質問に十分な範囲で抑え、応答速度を上げる。
+    "max_new_tokens": 72,
 }
 
 # 119救急原稿は項目が多く長い（氏名/住所/持病/服薬/アレルギー/緊急連絡先…）ため、
@@ -67,7 +71,9 @@ class Settings:
     asr_backend: str = "whisper_cpp"  # whisper_cpp | faster_whisper | mock
     whisper_cpp_bin: str = "whisper-cli"
     whisper_cpp_model: str = "models/ggml-base.bin"
-    faster_whisper_model: str = "base"  # tiny | base | small | medium（Mac開発用）
+    # tiny | base | small | medium。日本語＋高齢者音声の精度のため small を既定に
+    # （base は誤認識が多い）。重い場合は FASTER_WHISPER_MODEL で base へ切替可。
+    faster_whisper_model: str = "small"
 
     family_notify_channel: str = "mock"  # mock | webhook | line_notify
     family_webhook_url: str = ""
@@ -102,7 +108,7 @@ class Settings:
             asr_backend=e("ASR_BACKEND", "whisper_cpp"),
             whisper_cpp_bin=e("WHISPER_CPP_BIN", "whisper-cli"),
             whisper_cpp_model=e("WHISPER_CPP_MODEL", "models/ggml-base.bin"),
-            faster_whisper_model=e("FASTER_WHISPER_MODEL", "base"),
+            faster_whisper_model=e("FASTER_WHISPER_MODEL", "small"),
             family_notify_channel=e("FAMILY_NOTIFY_CHANNEL", "mock"),
             family_webhook_url=e("FAMILY_WEBHOOK_URL", ""),
             line_notify_token=e("LINE_NOTIFY_TOKEN", ""),

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .companion.llm import build_llm
 from .companion.persona import build_system_prompt
+from .companion.text import trim_reply
 from .config import Settings
 from .emergency.dispatch import build_dispatch_facts, compose_dispatch_script
 from .emergency.notify import notify_family
@@ -100,7 +101,8 @@ class Runtime:
         user_text = (user_text or "").strip()
         if not user_text:
             return "", None
-        reply = self.llm.chat(self.system_prompt, self.chat_history, user_text)
+        # 高齢者向けに1発話を短く。モデルが長く返しても文単位で丸める。
+        reply = trim_reply(self.llm.chat(self.system_prompt, self.chat_history, user_text))
         self.chat_history.append((user_text, reply))
         self._log("chat", f"本人: {user_text} / 灯: {reply}")
         # 話し相手の発話は高齢者向けに ゆっくり

@@ -10,10 +10,16 @@ backend:
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
 
 from ..config import Settings
+
+logger = logging.getLogger(__name__)
+
+# 認識のヒント（高齢者の日常会話という文脈を与え、口語・短い発話の取りこぼしを減らす）。
+_ASR_PROMPT = "一人暮らしの高齢者との、やさしい日常会話です。"
 
 
 class MockASR:
@@ -40,10 +46,21 @@ class FasterWhisperASR:
             return ""
         try:
             segments, _ = self.model.transcribe(
-                wav_path, language="ja", vad_filter=True, beam_size=1
+                wav_path,
+                language="ja",
+                beam_size=5,  # 既定値。貪欲(=1)だと日本語で誤認識が増える。
+                initial_prompt=_ASR_PROMPT,
+                vad_filter=True,
+                # 高齢者の小声・語頭/語尾を削り過ぎないよう既定より緩める。
+                vad_parameters=dict(threshold=0.3, min_silence_duration_ms=300),
+                condition_on_previous_text=False,  # 短い単発ターンでの誤り伝播を防ぐ。
             )
-            return "".join(seg.text for seg in segments).strip()
+            text = "".join(seg.text for seg in segments).strip()
+            if not text:
+                logger.warning("ASR: 認識結果が空でした (path=%s)", wav_path)
+            return text
         except Exception:
+            logger.exception("ASR: faster-whisper の認識に失敗しました (path=%s)", wav_path)
             return ""
 
 
@@ -82,6 +99,11 @@ def build_asr(settings: Settings):
         try:
             return FasterWhisperASR(settings.faster_whisper_model)
         except Exception:
+            # 無言でMock(常に"")に落ちると「精度が悪い」ように見えるため必ず記録する。
+            logger.exception(
+                "ASR: faster-whisper の初期化に失敗 → MockASRにフォールバック (model=%s)",
+                settings.faster_whisper_model,
+            )
             return MockASR()
     if settings.asr_backend == "whisper_cpp":
         return WhisperCppASR(settings.whisper_cpp_bin, settings.whisper_cpp_model)
